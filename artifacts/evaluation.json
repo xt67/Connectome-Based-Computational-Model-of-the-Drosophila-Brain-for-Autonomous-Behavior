@@ -1,0 +1,123 @@
+{
+  "controllers": [
+    {
+      "mean_abs_dev": 0.4929471623657822,
+      "max_abs_dev": 1.2743739002103656,
+      "rms_dev": 0.6011081540614338,
+      "lane_exits": 0.0,
+      "distance_m": 105.41191516274105,
+      "duration_s": 27.14749999999951,
+      "steer_effort": 10.24602936548633,
+      "fitness": -0.853570408037835,
+      "crash_rate": 0.25,
+      "condition": "Fly SNN (trained)",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 1.0788237383404253,
+      "max_abs_dev": 2.512182536515933,
+      "rms_dev": 1.293165826003115,
+      "lane_exits": 0.0,
+      "distance_m": 117.97539887087987,
+      "duration_s": 29.292499999999464,
+      "steer_effort": 4.023965662129224,
+      "fitness": -1.135436805912375,
+      "crash_rate": 0.125,
+      "condition": "Fly SNN (untrained defaults)",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 0.33473873462298087,
+      "max_abs_dev": 0.6547845474787719,
+      "rms_dev": 0.38052513239551367,
+      "lane_exits": 0.0,
+      "distance_m": 129.7711946905398,
+      "duration_s": 30.01999999999945,
+      "steer_effort": 1.8013965390126558,
+      "fitness": 0.08378027015755743,
+      "crash_rate": 0.0,
+      "condition": "PID baseline",
+      "n_seeds": 8
+    }
+  ],
+  "ablations": [
+    {
+      "mean_abs_dev": 0.4929471623657822,
+      "max_abs_dev": 1.2743739002103656,
+      "rms_dev": 0.6011081540614338,
+      "lane_exits": 0.0,
+      "distance_m": 105.41191516274105,
+      "duration_s": 27.14749999999951,
+      "steer_effort": 10.24602936548633,
+      "fitness": -0.853570408037835,
+      "crash_rate": 0.25,
+      "condition": "intact",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 2.73310160698112,
+      "max_abs_dev": 5.655726705225579,
+      "rms_dev": 3.2285568497915818,
+      "lane_exits": 1.0,
+      "distance_m": 118.32845519950338,
+      "duration_s": 26.029999999999532,
+      "steer_effort": 0.7002330538732155,
+      "fitness": -3.4087281775357203,
+      "crash_rate": 0.0,
+      "condition": "H2 left silenced",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 1.9445670091907343,
+      "max_abs_dev": 4.21247418843665,
+      "rms_dev": 2.3377411631863527,
+      "lane_exits": 0.625,
+      "distance_m": 88.88551147958665,
+      "duration_s": 20.08499999999966,
+      "steer_effort": 0.9437988128548409,
+      "fitness": -2.3968671394434558,
+      "crash_rate": 0.0,
+      "condition": "H2 right silenced",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 1.9435595860383876,
+      "max_abs_dev": 4.276098892283057,
+      "rms_dev": 2.351105727391788,
+      "lane_exits": 0.625,
+      "distance_m": 88.12631245993164,
+      "duration_s": 20.149999999999658,
+      "steer_effort": 1.070618235814434,
+      "fitness": -2.411684758774749,
+      "crash_rate": 0.0,
+      "condition": "DNa02 right silenced",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 1.1302626464191918,
+      "max_abs_dev": 2.7956084367198293,
+      "rms_dev": 1.3667690919586288,
+      "lane_exits": 0.375,
+      "distance_m": 102.69570621685286,
+      "duration_s": 28.17499999999949,
+      "steer_effort": 15.313167730099245,
+      "fitness": -1.928449113227289,
+      "crash_rate": 0.25,
+      "condition": "no motion (EMD off)",
+      "n_seeds": 8
+    },
+    {
+      "mean_abs_dev": 2.618662900208526,
+      "max_abs_dev": 5.071173368635628,
+      "rms_dev": 3.040443500613277,
+      "lane_exits": 0.875,
+      "distance_m": 121.65732058382268,
+      "duration_s": 26.899999999999515,
+      "steer_effort": 0.0,
+      "fitness": -3.117110167279952,
+      "crash_rate": 0.0,
+      "condition": "no position (edges off)",
+      "n_seeds": 8
+    }
+  ]
+}

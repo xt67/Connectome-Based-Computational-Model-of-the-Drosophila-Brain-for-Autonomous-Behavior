@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FlyDrive — Drosophila Brain-Inspired Autonomous Driving</title>
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    --bg:#070c14;
+    --panel:#0e1622;
+    --panel-2:#121d2c;
+    --line:#1e2c3f;
+    --ink:#e6eef8;
+    --ink-dim:#8fa3ba;
+    --ink-faint:#5d6f88;
+    --green:#4ade80;
+    --blue:#5aa9ff;
+    --amber:#ffab4d;
+    --red:#ff5f57;
+    --violet:#b98cff;
+    --focal:520;
+  }
+  *,*::before,*::after{box-sizing:inherit}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Inter","Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;}
+  body{padding:14px;max-width:1560px;margin:0 auto}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+  .muted{color:var(--ink-dim);font-size:12px;line-height:1.45}
+  .mono{font-variant-numeric:tabular-nums}
+
+  header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;
+    padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .brand h1{font-size:26px}
+  .brand h1 span{color:var(--green)}
+  .tagline{text-align:right;font-size:13px;color:var(--ink)}
+  nav{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px;
+    overflow-x:auto;max-width:100%}
+  nav button{background:none;border:0;color:var(--ink-dim);padding:8px 16px;border-radius:7px;
+    font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+  nav button[aria-selected="true"]{background:var(--panel-2);color:var(--green);
+    box-shadow:inset 0 -2px 0 var(--green)}
+  nav button:focus-visible,.ctrl:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+  .grid{display:grid;gap:12px;grid-template-columns:1.35fr 1fr .75fr;align-items:start}
+  @media(max-width:1180px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .card h3{font-size:14px}
+  .stack{display:grid;gap:12px}
+  .span-road{grid-row:span 3}
+  @media(max-width:1180px){.span-road{grid-row:auto;grid-column:1/-1}}
+
+  .road-wrap{position:relative;border-radius:10px;overflow:hidden;background:#05080e}
+  canvas{display:block;width:100%;height:auto}
+  .overlay{position:absolute;background:rgba(8,14,22,.82);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;font-size:12px;backdrop-filter:blur(4px)}
+  .ov-tl{top:10px;left:10px}
+  .ov-tr{top:10px;right:10px;font-size:14px}
+  .ov-bl{bottom:10px;left:10px;right:10px;display:flex;gap:16px;align-items:center}
+  .bar{flex:1;height:8px;background:#12203055;border:1px solid var(--line);border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--green)}
+  .bar.brake i{background:var(--red)}
+
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;color:var(--ink-dim)}
+  .kv b{color:var(--ink);font-weight:500}
+  .status{font-size:20px;color:var(--green);padding:10px 12px;border:1px solid #1f3b2c;
+    background:#0d1a16;border-radius:9px;margin-bottom:10px}
+  .status[data-risk="high"]{color:var(--red);border-color:#3b1f22;background:#1a0f11}
+  .status[data-risk="med"]{color:var(--amber);border-color:#3b2f1f;background:#1a150d}
+
+  .ctrl{display:flex;align-items:center;gap:10px;width:100%;background:var(--panel-2);color:var(--ink);
+    border:1px solid var(--line);border-radius:9px;padding:10px 12px;font:inherit;font-size:13px;
+    cursor:pointer;margin-bottom:8px}
+  .ctrl.primary{background:#10281c;border-color:#1f5138;color:var(--green)}
+  .ctrl:hover{border-color:#2c405a}
+
+  .gauges{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:12px;align-items:end;text-align:center}
+  .gnum{font-size:20px;color:var(--green);font-variant-numeric:tabular-nums}
+  .vbar{height:84px;width:26px;margin:0 auto;border:1px solid var(--line);border-radius:6px;
+    background:#0a1220;position:relative;overflow:hidden}
+  .vbar i{position:absolute;bottom:0;left:0;right:0;background:var(--green)}
+  .vbar.brake i{background:var(--red)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--ink-dim);margin-top:6px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--ink-dim);font-weight:500}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+  .field{display:grid;gap:5px;margin-bottom:14px;font-size:12px;color:var(--ink-dim)}
+  .field b{color:var(--ink);font-weight:500}
+  input[type=range]{width:100%;accent-color:var(--green)}
+  label.check{display:flex;gap:8px;align-items:center;color:var(--ink);font-size:13px;margin-bottom:9px}
+  .hide{display:none}
+  footer{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink-dim)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
+      <ellipse cx="20" cy="24" rx="7" ry="11" fill="#2a3242"/>
+      <ellipse cx="13" cy="18" rx="8" ry="4" fill="#5aa9ff" opacity=".35" transform="rotate(-25 13 18)"/>
+      <ellipse cx="27" cy="18" rx="8" ry="4" fill="#5aa9ff" opacity=".35" transform="rotate(25 27 18)"/>
+      <circle cx="16" cy="10" r="4.5" fill="#ff5f57"/><circle cx="24" cy="10" r="4.5" fill="#ff5f57"/>
+    </svg>
+    <div>
+      <h1>Fly<span>Drive</span></h1>
+      <div class="muted">Drosophila brain-inspired autonomous driving (simulation)</div>
+    </div>
+  </div>
+  <nav id="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="sim">Simulation</button>
+    <button role="tab" aria-selected="false" data-tab="brain">Brain activity</button>
+    <button role="tab" aria-selected="false" data-tab="conn">Connectome</button>
+    <button role="tab" aria-selected="false" data-tab="ana">Analysis</button>
+    <button role="tab" aria-selected="false" data-tab="set">Settings</button>
+  </nav>
+  <div class="tagline">Real brain wiring. Real behavior.<div class="muted">FlyWire connectome · H2 → DNa02 pathway</div></div>
+</header>
+
+<!-- ───────────── SIMULATION ───────────── -->
+<section id="tab-sim" class="grid">
+  <div class="card span-road">
+    <h3>Simulated environment</h3>
+    <p class="muted">Steering comes from the fly motor pathway; throttle and braking come from the collision monitor.</p>
+    <div class="road-wrap" style="margin-top:10px">
+      <canvas id="road" width="860" height="620"></canvas>
+      <div class="overlay ov-tl">Agent under connectome control<div class="muted" id="segLabel">Straight segment</div></div>
+      <div class="overlay ov-tr mono">Speed <b id="speed">0.0</b> km/h</div>
+      <div class="overlay ov-bl">
+        <span class="mono">Gas <b id="gasTxt">0%</b></span><span class="bar"><i id="gasBar"></i></span>
+        <span class="mono">Brake <b id="brkTxt">0%</b></span><span class="bar brake"><i id="brkBar"></i></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <h3>Fly brain (connectome)</h3>
+      <p class="muted">Neurons shown are the populations wired into the controller.</p>
+      <canvas id="brainMap" width="520" height="230"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--blue)"></i>Visual / optic lobe</span>
+        <span><i class="dot" style="background:var(--amber)"></i>H2 interneurons</span>
+        <span><i class="dot" style="background:var(--red)"></i>DNa02 motor</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Brain to wheels</h3>
+      <p class="muted">Asymmetry between the two H2 cells becomes a steering command.</p>
+      <canvas id="mapping" width="520" height="190"></canvas>
+    </div>
+    <div class="card">
+      <h3>Motor output</h3>
+      <div class="gauges" style="margin-top:10px">
+        <div>
+          <canvas id="wheel" width="190" height="120"></canvas>
+          <div class="gnum" id="steerTxt">+0.0°</div>
+          <div class="muted">Steering</div>
+        </div>
+        <div><div class="vbar"><i id="gasV"></i></div><div class="gnum" id="gasV2">0%</div><div class="muted">Gas</div></div>
+        <div><div class="vbar brake"><i id="brkV"></i></div><div class="gnum" id="brkV2" style="color:var(--red)">0%</div><div class="muted">Brake</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <h3>Neural activity</h3>
+      <p class="muted">Spikes from the simulated populations, last 5 seconds.</p>
+      <canvas id="raster" width="420" height="230"></canvas>
+    </div>
+    <div class="card">
+      <h3>Camera input</h3>
+      <p class="muted">What the optical-flow front end sees.</p>
+      <canvas id="cam" width="420" height="150"></canvas>
+    </div>
+    <div class="card">
+      <h3>Behavior</h3>
+      <div class="status" id="behavior">Waiting to start</div>
+      <div class="kv"><span>Detected objects</span><b id="nObj">0</b></div>
+      <div class="kv"><span>Lane deviation</span><b id="devTxt">0.00 m</b></div>
+      <div class="kv"><span>Collision risk</span><b id="riskTxt">—</b></div>
+      <div class="kv"><span>Controller</span><b id="ctrlTxt">H2 spiking</b></div>
+      <div class="kv"><span>Simulation time</span><b id="clock">00:00</b></div>
+    </div>
+    <div class="card">
+      <h3>Controls</h3>
+      <button class="ctrl primary" id="btnRun">▶ Start simulation</button>
+      <button class="ctrl" id="btnStep">⏭ Step 0.5 s</button>
+      <button class="ctrl" id="btnReset">⟲ Reset run</button>
+      <button class="ctrl" id="btnSwap">⇄ Switch to baseline controller</button>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── BRAIN ACTIVITY ───────────── -->
+<section id="tab-brain" class="grid hide">
+  <div class="card" style="grid-column:1/-1">
+    <h3>Population spike raster</h3>
+    <p class="muted">Each row is one population; each tick is one spike from a member neuron.</p>
+    <canvas id="raster2" width="1400" height="360"></canvas>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h3>Firing rates</h3>
+    <p class="muted">Instantaneous rate per population, smoothed over 200 ms.</p>
+    <canvas id="rates" width="1400" height="240"></canvas>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--blue)"></i>H2 left</span>
+      <span><i class="dot" style="background:var(--violet)"></i>H2 right</span>
+      <span><i class="dot" style="background:var(--red)"></i>DNa02 left</span>
+      <span><i class="dot" style="background:var(--amber)"></i>DNa02 right</span>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── CONNECTOME ───────────── -->
+<section id="tab-conn" class="grid hide">
+  <div class="card" style="grid-column:1/-1">
+    <h3>Pathway used by the controller</h3>
+    <p class="muted">Edge thickness is synapse count from FlyWire; edge glow is live traffic during the run.</p>
+    <canvas id="graph" width="1400" height="430"></canvas>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h3>Synaptic weights</h3>
+    <table>
+      <thead><tr><th>Source</th><th>Target</th><th>Sign</th><th class="num">Synapses</th><th class="num">Weight used</th></tr></thead>
+      <tbody id="wtab"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────── ANALYSIS ───────────── -->
+<section id="tab-ana" class="grid hide">
+  <div class="card" style="grid-column:1/-1">
+    <h3>Lane deviation over the run</h3>
+    <p class="muted">Signed distance from lane center. The dashed band is the ±0.5 m tolerance.</p>
+    <canvas id="devChart" width="1400" height="260"></canvas>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h3>Trajectory</h3>
+    <p class="muted">Path driven so far against the road centerline.</p>
+    <canvas id="traj" width="1400" height="240"></canvas>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h3>Ablation study</h3>
+    <p class="muted">Run each condition from Settings; results land here as you go.</p>
+    <table>
+      <thead><tr><th>Condition</th><th class="num">Mean |deviation|</th><th class="num">Max |deviation|</th><th class="num">Lane exits</th><th>Status</th></tr></thead>
+      <tbody id="abtab"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────── SETTINGS ───────────── -->
+<section id="tab-set" class="grid hide">
+  <div class="card">
+    <h3>Neural model</h3>
+    <div class="field"><b>H2 input gain <span class="mono" id="vGain">1.00</span></b>
+      <input type="range" id="sGain" min="0.2" max="2.5" step="0.05" value="1"></div>
+    <div class="field"><b>Membrane noise <span class="mono" id="vNoise">0.10</span></b>
+      <input type="range" id="sNoise" min="0" max="0.6" step="0.02" value="0.1"></div>
+    <div class="field"><b>DNa02 → steering gain <span class="mono" id="vMot">1.00</span></b>
+      <input type="range" id="sMot" min="0.2" max="3" step="0.05" value="1"></div>
+  </div>
+  <div class="card">
+    <h3>Ablations</h3>
+    <p class="muted">Silence part of the pathway and watch the effect on lane keeping.</p>
+    <label class="check"><input type="checkbox" id="abL"> Silence H2 left</label>
+    <label class="check"><input type="checkbox" id="abR"> Silence H2 right</label>
+    <label class="check"><input type="checkbox" id="abMot"> Silence DNa02 right</label>
+    <label class="check"><input type="checkbox" id="abFlow"> Remove optical flow, keep edge position only</label>
+  </div>
+  <div class="card">
+    <h3>Road and vehicle</h3>
+    <div class="field"><b>Target speed <span class="mono" id="vSpd">18</span> km/h</b>
+      <input type="range" id="sSpd" min="6" max="40" step="1" value="18"></div>
+    <div class="field"><b>Curvature <span class="mono" id="vCur">1.00</span></b>
+      <input type="range" id="sCur" min="0" max="2.5" step="0.05" value="1"></div>
+    <div class="field"><b>Traffic density <span class="mono" id="vTraf">2</span></b>
+      <input type="range" id="sTraf" min="0" max="5" step="1" value="2"></div>
+    <button class="ctrl" id="btnLog">Record this condition in the ablation table</button>
+  </div>
+</section>
+
+<footer>
+  <span>FlyDrive — connectome-based neural control for autonomous behavior</span>
+  <span>Small brains, big possibilities.</span>
+</footer>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = {green:"#4ade80",blue:"#5aa9ff",amber:"#ffab4d",red:"#ff5f57",violet:"#b98cff",
+           dim:"#8fa3ba",line:"#1e2c3f"};
+
+/* ── tabs ─────────────────────────────────────────── */
+const tabs = ["sim","brain","conn","ana","set"];
+$("#tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  [...$("#tabs").children].forEach(x => x.setAttribute("aria-selected", x===b));
+  tabs.forEach(t => $("#tab-"+t).classList.toggle("hide", t!==b.dataset.tab));
+});
+
+/* ── parameters ───────────────────────────────────── */
+const P = {gain:1, noise:0.1, motor:1, speed:18, curve:1, traffic:2,
+           abL:false, abR:false, abMot:false, abFlow:false, baseline:false};
+const bind = (id,key,lab,fmt=v=>v.toFixed(2)) => {
+  const el=$(id); const out=$(lab);
+  const set=()=>{P[key]=parseFloat(el.value); out.textContent=fmt(P[key]);};
+  el.addEventListener("input",set); set();
+};
+bind("#sGain","gain","#vGain"); bind("#sNoise","noise","#vNoise");
+bind("#sMot","motor","#vMot"); bind("#sSpd","speed","#vSpd",v=>v.toFixed(0));
+bind("#sCur","curve","#vCur"); bind("#sTraf","traffic","#vTraf",v=>v.toFixed(0));
+["abL","abR","abMot","abFlow"].forEach(k =>
+  $("#"+k).addEventListener("change", e => { P[k]=e.target.checked; }));
+
+/* ── road geometry ────────────────────────────────── */
+const LANE = 3.5;                                  // half road width, metres
+const centerAt = s => P.curve * (2.6*Math.sin(s/42) + 1.4*Math.sin(s/17 + 1.1));
+const curvatureLabel = s => {
+  const d = centerAt(s+8) - centerAt(s);
+  return d > 0.35 ? "Right-hand bend" : d < -0.35 ? "Left-hand bend" : "Straight segment";
+};
+
+/* ── leaky integrate-and-fire population ──────────── */
+function Pop(n, tau, thr, color){
+  return {n, tau, thr, color, v:new Float32Array(n), spikes:new Uint8Array(n), rate:0, hist:[]};
+}
+function stepPop(pop, drive, dt){
+  let count = 0;
+  for(let i=0;i<pop.n;i++){
+    const noise = (Math.random()-0.5)*P.noise*3;
+    pop.v[i] += dt/pop.tau * (-pop.v[i] + drive + noise);
+    if(pop.v[i] > pop.thr){ pop.v[i] = 0; pop.spikes[i]=1; count++; }
+    else pop.spikes[i]=0;
+  }
+  const inst = count / pop.n / dt;                 // spikes per neuron per second
+  pop.rate += (inst - pop.rate) * clamp(dt/0.2,0,1);
+  return count;
+}
+
+const POPS = {
+  visL: Pop(10,0.020,1.0,C.blue),   visR: Pop(10,0.020,1.0,C.blue),
+  h2L:  Pop(8, 0.030,1.0,C.violet), h2R:  Pop(8, 0.030,1.0,C.violet),
+  dnL:  Pop(6, 0.040,1.0,C.red),    dnR:  Pop(6, 0.040,1.0,C.amber)
+};
+const ROWS = [["Visual L","visL"],["Visual R","visR"],["H2 L","h2L"],["H2 R","h2R"],
+              ["DNa02 L","dnL"],["DNa02 R","dnR"]];
+
+/* ── simulation state ─────────────────────────────── */
+let S;
+function reset(){
+  S = {t:0, s:0, lat:0, heading:0, v:0, steer:0, gas:0, brake:0,
+       obstacles:[], spikeLog:[], devLog:[], traj:[], risk:"low", running:false};
+  seedTraffic();
+  POPS && Object.values(POPS).forEach(p => p.v.fill(0));
+}
+function seedTraffic(){
+  S.obstacles = [];
+  const n = Math.round(P.traffic);
+  for(let i=0;i<n;i++) S.obstacles.push({
+    d: 18 + i*16 + Math.random()*10,
+    side: Math.random()<0.5 ? -1 : 1,
+    ped: Math.random()<0.35,
+    v: 2 + Math.random()*4
+  });
+}
+reset();
+
+/* ── one control step ─────────────────────────────── */
+function step(dt){
+  S.t += dt;
+  const ms = P.speed/3.6;
+  S.v += (ms*(1-0.6*S.brake) - S.v) * clamp(dt*1.2,0,1);
+  S.s += S.v*dt;
+
+  // what the eyes see: where the lane edges sit relative to the car
+  const lookahead = 8;
+  const target = centerAt(S.s + lookahead);
+  const offset = S.lat - target;                       // + means car is right of center
+  const edgeL = LANE + offset, edgeR = LANE - offset;  // distance to each edge
+  const flow  = P.abFlow ? 0 : S.heading * 6;          // rotational optic flow term
+
+  // visual drive: closer edge → stronger response on that side
+  const driveL = P.gain * (1.6/Math.max(edgeL,0.4) + flow);
+  const driveR = P.gain * (1.6/Math.max(edgeR,0.4) - flow);
+
+  stepPop(POPS.visL, driveL, dt);
+  stepPop(POPS.visR, driveR, dt);
+
+  // H2 is contralateral and mutually inhibitory
+  const h2DriveL = P.abL ? -1 : 0.9*POPS.visR.rate/12 - 0.25*POPS.h2R.rate/12 + 0.55;
+  const h2DriveR = P.abR ? -1 : 0.9*POPS.visL.rate/12 - 0.25*POPS.h2L.rate/12 + 0.55;
+  stepPop(POPS.h2L, h2DriveL, dt);
+  stepPop(POPS.h2R, h2DriveR, dt);
+
+  stepPop(POPS.dnL, 1.05*POPS.h2L.rate/12 + 0.35, dt);
+  stepPop(POPS.dnR, P.abMot ? -1 : 1.05*POPS.h2R.rate/12 + 0.35, dt);
+
+  // motor asymmetry → steering, or PID baseline for comparison
+  let cmd;
+  if(P.baseline){
+    cmd = clamp(-(1.15*offset + 2.4*S.heading), -0.6, 0.6);
+  } else {
+    const asym = (POPS.dnR.rate - POPS.dnL.rate)/14;
+    cmd = clamp(asym * P.motor * 1.5, -0.6, 0.6);
+  }
+  S.steer += (cmd - S.steer) * clamp(dt*7,0,1);
+
+  S.heading += S.steer * dt * clamp(S.v/6, 0.2, 2.2);
+  S.heading -= (centerAt(S.s+2)-centerAt(S.s)) * 0.0;    // road frame, no auto-correct
+  S.heading = clamp(S.heading, -0.7, 0.7);
+  S.lat += S.heading * S.v * dt;
+
+  // traffic and collision monitor
+  let nearest = Infinity;
+  for(const o of S.obstacles){
+    o.d -= (S.v - o.v)*dt;
+    if(o.d < -8 || o.d > 140) { o.d = 60 + Math.random()*50; o.side = Math.random()<0.5?-1:1; }
+    const lateralGap = Math.abs((o.side*1.7 + centerAt(S.s+o.d)) - S.lat);
+    if(lateralGap < 1.6) nearest = Math.min(nearest, o.d);
+  }
+  S.risk = nearest < 9 ? "high" : nearest < 20 ? "med" : "low";
+  S.brake += ((S.risk==="high" ? 0.75 : S.risk==="med" ? 0.25 : 0) - S.brake)*clamp(dt*3,0,1);
+  S.gas = clamp(0.55*(1-S.brake) * clamp(1-Math.abs(S.steer)*0.8,0.2,1), 0, 1);
+
+  // logs
+  const dev = S.lat - centerAt(S.s);
+  S.devLog.push({t:S.t, dev});
+  if(S.devLog.length > 3000) S.devLog.shift();
+  S.traj.push({s:S.s, lat:S.lat, c:centerAt(S.s)});
+  if(S.traj.length > 3000) S.traj.shift();
+  ROWS.forEach(([,key],r) => {
+    const p = POPS[key];
+    for(let i=0;i<p.n;i++) if(p.spikes[i]) S.spikeLog.push({t:S.t, r, i});
+  });
+  while(S.spikeLog.length && S.spikeLog[0].t < S.t-5) S.spikeLog.shift();
+  ROWS.forEach(([,key]) => {
+    const p = POPS[key];
+    p.hist.push(p.rate);
+    if(p.hist.length > 1200) p.hist.shift();
+  });
+}
+
+/* ── drawing helpers ──────────────────────────────── */
+function fit(cv){
+  const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio||1, 2);
+  if(cv.width !== Math.round(r.width*dpr)){
+    cv.width = Math.round(r.width*dpr);
+    cv.height = Math.round(cv.width * (cv.dataset.ratio || (cv.getAttribute("height")/cv.getAttribute("width"))));
+  }
+  const g = cv.getContext("2d");
+  g.setTransform(cv.width/ (cv.dataset.w||cv.width), 0,0, cv.width/(cv.dataset.w||cv.width), 0,0);
+  return g;
+}
+function ctx(cv){                       // simple crisp-enough context in CSS pixels
+  const g = cv.getContext("2d");
+  g.setTransform(1,0,0,1,0,0);
+  g.clearRect(0,0,cv.width,cv.height);
+  return g;
+}
+
+/* ── road view ────────────────────────────────────── */
+function drawRoad(){
+  const cv = $("#road"), g = ctx(cv), W = cv.width, H = cv.height;
+  const hz = H*0.34, focal = 620, camH = 1.9;
+
+  g.fillStyle = "#0a111c"; g.fillRect(0,0,W,hz);
+  const sky = g.createLinearGradient(0,0,0,hz);
+  sky.addColorStop(0,"#0f1a2c"); sky.addColorStop(1,"#243b52");
+  g.fillStyle = sky; g.fillRect(0,0,W,hz);
+  g.fillStyle = "#0c1420"; g.fillRect(0,hz,W,H-hz);
+
+  const proj = (d, x) => {
+    const sc = focal/Math.max(d,0.6);
+    return {x: W/2 + (x - S.lat - S.heading*d)*sc*0.09, y: hz + camH*sc*0.09, sc};
+  };
+
+  // asphalt
+  g.beginPath();
+  let first = true;
+  for(let d=80; d>=1; d-=1){ const p = proj(d, centerAt(S.s+d)-LANE);
+    first ? (g.moveTo(p.x,p.y), first=false) : g.lineTo(p.x,p.y); }
+  for(let d=1; d<=80; d+=1){ const p = proj(d, centerAt(S.s+d)+LANE); g.lineTo(p.x,p.y); }
+  g.closePath(); g.fillStyle = "#1a212b"; g.fill();
+
+  // edge lines + dashes
+  const line = (off, style, w) => {
+    g.beginPath();
+    for(let d=1; d<=80; d+=1){ const p = proj(d, centerAt(S.s+d)+off);
+      d===1?g.moveTo(p.x,p.y):g.lineTo(p.x,p.y); }
+    g.strokeStyle = style; g.lineWidth = w; g.stroke();
+  };
+  line(-LANE,"#e8edf5aa",2); line(LANE,"#e8edf5aa",2);
+  for(let d=2; d<70; d+=6){
+    const a = proj(d, centerAt(S.s+d)), b = proj(d+3, centerAt(S.s+d+3));
+    g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y);
+    g.strokeStyle = "#e8edf588"; g.lineWidth = Math.max(1, 90/d); g.stroke();
+  }
+
+  // sensor cone
+  const near = proj(3, centerAt(S.s+3)), far = proj(38, centerAt(S.s+38));
+  g.beginPath(); g.moveTo(W/2-10,H*0.82); g.lineTo(far.x-70,far.y); g.lineTo(far.x+70,far.y);
+  g.lineTo(W/2+10,H*0.82); g.closePath();
+  g.fillStyle = "rgba(90,169,255,.12)"; g.fill();
+
+  // obstacles, far to near
+  let count = 0;
+  [...S.obstacles].sort((a,b)=>b.d-a.d).forEach(o => {
+    if(o.d < 1 || o.d > 90) return;
+    const p = proj(o.d, centerAt(S.s+o.d) + o.side*1.7);
+    const h = (o.ped ? 1.8 : 1.5) * p.sc * 0.09, w = (o.ped ? 0.6 : 1.9) * p.sc * 0.09;
+    g.fillStyle = o.ped ? "#3c4a63" : "#4a5568";
+    g.fillRect(p.x-w/2, p.y-h, w, h);
+    const col = o.ped ? C.blue : C.red;
+    g.strokeStyle = col; g.lineWidth = 1.5;
+    g.strokeRect(p.x-w/2-3, p.y-h-3, w+6, h+6);
+    if(p.sc*0.09 > 6){
+      g.fillStyle = col; g.font = "11px Inter, sans-serif";
+      g.fillText(`${o.ped?"Pedestrian":"Car"} ${o.d.toFixed(1)} m`, p.x-w/2-3, p.y-h-8);
+    }
+    count++;
+  });
+  $("#nObj").textContent = count;
+
+  // ego car
+  const cw = 130, ch = 72, cx = W/2 + S.steer*40, cy = H-118;
+  g.fillStyle = "#5fd47f"; g.strokeStyle="#0b1a12"; g.lineWidth=2;
+  g.beginPath(); g.roundRect(cx-cw/2, cy, cw, ch, 12); g.fill(); g.stroke();
+  g.fillStyle = "#16261c";
+  g.beginPath(); g.roundRect(cx-cw/2+14, cy+10, cw-28, 24, 6); g.fill();
+  g.strokeStyle = C.green; g.lineWidth = 2;
+  g.strokeRect(cx-cw/2-10, cy-12, cw+20, ch+24);
+
+  // minimap
+  const mw = 150, mh = 110, mx = 14, my = H-mh-70;
+  g.fillStyle = "rgba(8,14,22,.85)"; g.strokeStyle = C.line;
+  g.beginPath(); g.roundRect(mx,my,mw,mh,8); g.fill(); g.stroke();
+  g.strokeStyle = "#2a3b52"; g.lineWidth=1;
+  g.beginPath();
+  for(let d=0; d<70; d+=1){
+    const y = my+mh-10 - d*(mh-20)/70, x = mx+mw/2 + (centerAt(S.s+d)-S.lat)*6;
+    d===0?g.moveTo(x,y):g.lineTo(x,y);
+  }
+  g.stroke();
+  g.fillStyle = C.green;
+  g.beginPath(); g.moveTo(mx+mw/2, my+mh-14); g.lineTo(mx+mw/2-5,my+mh-6); g.lineTo(mx+mw/2+5,my+mh-6);
+  g.closePath(); g.fill();
+  g.fillStyle = C.dim; g.font="11px Inter, sans-serif"; g.fillText("Top view", mx+8, my+16);
+}
+
+/* ── camera / optical flow strip ──────────────────── */
+function drawCam(){
+  const cv = $("#cam"), g = ctx(cv), W=cv.width, H=cv.height, hz=H*0.32;
+  g.fillStyle="#131a24"; g.fillRect(0,0,W,hz);
+  g.fillStyle="#1d242e"; g.fillRect(0,hz,W,H-hz);
+  const off = (S.lat - centerAt(S.s+8))*10;
+  g.strokeStyle = C.green; g.lineWidth=2;
+  [[-1],[1]].forEach(([k])=>{
+    g.beginPath(); g.moveTo(W/2 + k*10 - off, hz+2); g.lineTo(W/2 + k*W*0.42 - off*2.2, H); g.stroke();
+  });
+  // flow vectors
+  g.strokeStyle = "rgba(90,169,255,.75)";
+  for(let i=0;i<8;i++){
+    const y = hz + 8 + i*(H-hz-12)/8, mag = (i+1)*1.6*(1+S.heading*4);
+    g.beginPath(); g.moveTo(22, y); g.lineTo(22+mag*2.2, y); g.stroke();
+    g.beginPath(); g.moveTo(W-22, y); g.lineTo(W-22-((i+1)*1.6*(1-S.heading*4))*2.2, y); g.stroke();
+  }
+  const near = S.obstacles.filter(o=>o.d>2&&o.d<50).sort((a,b)=>a.d-b.d)[0];
+  if(near){
+    const x = W/2 + near.side*40 - off, w = 900/near.d, h = w*0.7;
+    g.strokeStyle = near.ped ? C.blue : C.red; g.lineWidth=1.5;
+    g.strokeRect(x-w/2, hz+20-h/3, w, h);
+  }
+}
+
+/* ── brain map ────────────────────────────────────── */
+const BRAIN_NODES = (() => {
+  const out = [];
+  for(let i=0;i<70;i++){
+    const t = i/70, side = i%2?1:-1;
+    out.push({x:0.5 + side*(0.16+0.22*Math.sin(t*9)), y:0.28+0.45*((i*37)%70)/70,
+      c: i%7===0?C.red : i%3===0?C.amber : C.blue, r: 1.6+ (i%5)*0.5});
+  }
+  return out;
+})();
+function drawBrain(){
+  const cv=$("#brainMap"), g=ctx(cv), W=cv.width, H=cv.height;
+  g.strokeStyle="rgba(140,160,190,.18)"; g.lineWidth=1;
+  g.beginPath(); g.ellipse(W/2,H*0.52,W*0.34,H*0.33,0,0,7); g.stroke();
+  g.beginPath(); g.ellipse(W*0.22,H*0.52,W*0.10,H*0.26,0,0,7); g.stroke();
+  g.beginPath(); g.ellipse(W*0.78,H*0.52,W*0.10,H*0.26,0,0,7); g.stroke();
+  const pulse = 0.5 + 0.5*Math.sin(S.t*4);
+  BRAIN_NODES.forEach((n,i) => {
+    const x=n.x*W, y=n.y*H;
+    const hot = n.c===C.red ? POPS.dnR.rate/14 : n.c===C.amber ? POPS.h2L.rate/14 : POPS.visL.rate/16;
+    g.globalAlpha = 0.35 + 0.6*clamp(hot*(0.6+0.4*pulse),0,1);
+    g.fillStyle=n.c; g.beginPath(); g.arc(x,y,n.r,0,7); g.fill();
+    if(i%4===0){
+      const m = BRAIN_NODES[(i*13+5)%BRAIN_NODES.length];
+      g.strokeStyle=n.c; g.globalAlpha*=0.35; g.lineWidth=0.8;
+      g.beginPath(); g.moveTo(x,y);
+      g.quadraticCurveTo(W/2, H*0.45, m.x*W, m.y*H); g.stroke();
+    }
+  });
+  g.globalAlpha=1;
+  g.fillStyle=C.dim; g.font="11px Inter, sans-serif";
+  g.fillText("Optic lobe", 8, H-10);
+  g.fillText("Central brain", W/2-34, H-10);
+}
+
+/* ── brain → wheels mapping ───────────────────────── */
+function drawMapping(){
+  const cv=$("#mapping"), g=ctx(cv), W=cv.width, H=cv.height;
+  const L = clamp(POPS.dnL.rate/14,0,1), R = clamp(POPS.dnR.rate/14,0,1);
+  const col = [[W*0.27,"Left H2 → DNa02",C.blue,L,"Turn left"],
+               [W*0.73,"Right H2 → DNa02",C.amber,R,"Turn right"]];
+  g.font="12px Inter, sans-serif";
+  col.forEach(([x,label,c,val,act]) => {
+    g.fillStyle=c; g.textAlign="center"; g.fillText(label,x,20);
+    g.strokeStyle=c; g.lineWidth=2+val*5; g.globalAlpha=0.35+0.65*val;
+    g.beginPath(); g.moveTo(x, 34); g.bezierCurveTo(x, 80, x + (x<W/2?40:-40), 90, x, H-46);
+    g.stroke();
+    g.beginPath(); g.moveTo(x-6,H-52); g.lineTo(x+6,H-52); g.lineTo(x,H-40); g.closePath();
+    g.fillStyle=c; g.fill(); g.globalAlpha=1;
+    g.fillStyle="#e6eef8"; g.fillText(act, x, H-20);
+    g.fillStyle=C.dim; g.fillText((val*14).toFixed(1)+" Hz", x, H-6);
+  });
+  g.textAlign="left";
+}
+
+/* ── steering wheel gauge ─────────────────────────── */
+function drawWheel(){
+  const cv=$("#wheel"), g=ctx(cv), W=cv.width, H=cv.height, cx=W/2, cy=H*0.78, r=44;
+  g.strokeStyle="#22303f"; g.lineWidth=7;
+  g.beginPath(); g.arc(cx,cy,r,Math.PI*1.12,Math.PI*1.88); g.stroke();
+  const deg = S.steer*45;
+  g.strokeStyle=C.green; g.lineWidth=7;
+  g.beginPath();
+  const mid = Math.PI*1.5, sweep = (deg/45)*(Math.PI*0.38);
+  g.arc(cx,cy,r, Math.min(mid,mid+sweep), Math.max(mid,mid+sweep)); g.stroke();
+  g.save(); g.translate(cx,cy); g.rotate(deg*Math.PI/180);
+  g.strokeStyle="#7e8ea3"; g.lineWidth=4;
+  g.beginPath(); g.arc(0,0,r-16,0,7); g.stroke();
+  g.beginPath(); g.moveTo(-r+18,0); g.lineTo(r-18,0); g.moveTo(0,0); g.lineTo(0,r-18); g.stroke();
+  g.restore();
+}
+
+/* ── raster ───────────────────────────────────────── */
+function drawRaster(cv, big){
+  const g=ctx(cv), W=cv.width, H=cv.height, padL = big?70:56, padB=22;
+  g.font="11px Inter, sans-serif"; g.fillStyle=C.dim;
+  const rowH = (H-padB-6)/ROWS.length;
+  ROWS.forEach(([name,key],r) => {
+    const y = 6 + r*rowH;
+    g.fillStyle=C.dim; g.textAlign="right"; g.fillText(name, padL-8, y+rowH/2+4);
+    g.strokeStyle=C.line; g.beginPath(); g.moveTo(padL,y+rowH); g.lineTo(W-6,y+rowH); g.stroke();
+  });
+  g.textAlign="left";
+  const t0 = Math.max(0,S.t-5);
+  for(const sp of S.spikeLog){
+    const x = padL + (sp.t-t0)/5*(W-padL-8);
+    const y = 6 + sp.r*rowH + 3 + (sp.i % 6)*(rowH-8)/6;
+    g.strokeStyle = POPS[ROWS[sp.r][1]].color;
+    g.globalAlpha=0.9; g.lineWidth=1.4;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x,y+Math.max(3,rowH/6-1)); g.stroke();
+  }
+  g.globalAlpha=1; g.fillStyle=C.dim; g.textAlign="center";
+  for(let i=0;i<=5;i++){
+    const x = padL + i/5*(W-padL-8);
+    g.fillText((t0+i).toFixed(0), x, H-6);
+  }
+  g.fillText("Time (s)", (padL+W)/2, H-6+0);
+  g.textAlign="left";
+}
+
+/* ── rate traces ──────────────────────────────────── */
+function drawRates(){
+  const cv=$("#rates"), g=ctx(cv), W=cv.width, H=cv.height, pad=34;
+  g.strokeStyle=C.line; g.beginPath(); g.moveTo(pad,H-pad); g.lineTo(W-8,H-pad); g.stroke();
+  const series = [["h2L",C.blue],["h2R",C.violet],["dnL",C.red],["dnR",C.amber]];
+  const maxR = 20;
+  series.forEach(([k,c]) => {
+    const h = POPS[k].hist; if(h.length<2) return;
+    g.strokeStyle=c; g.lineWidth=1.8; g.beginPath();
+    h.forEach((v,i) => {
+      const x = pad + i/(h.length-1)*(W-pad-8);
+      const y = H-pad - clamp(v/maxR,0,1)*(H-pad-12);
+      i?g.lineTo(x,y):g.moveTo(x,y);
+    });
+    g.stroke();
+  });
+  g.fillStyle=C.dim; g.font="11px Inter, sans-serif";
+  g.fillText("20 Hz", 4, 16); g.fillText("0", 4, H-pad+4);
+}
+
+/* ── connectome graph ─────────────────────────────── */
+const NODES = [
+  {id:"Retina L", x:.10,y:.28,c:C.blue},   {id:"Retina R", x:.10,y:.72,c:C.blue},
+  {id:"LOB L",    x:.30,y:.28,c:C.blue},   {id:"LOB R",    x:.30,y:.72,c:C.blue},
+  {id:"H2 L",     x:.55,y:.28,c:C.violet}, {id:"H2 R",     x:.55,y:.72,c:C.violet},
+  {id:"DNa02 L",  x:.80,y:.28,c:C.red},    {id:"DNa02 R",  x:.80,y:.72,c:C.amber},
+  {id:"Steering", x:.95,y:.50,c:C.green}
+];
+const EDGES = [
+  ["Retina L","LOB L",1420,"+","visL"], ["Retina R","LOB R",1395,"+","visR"],
+  ["LOB L","H2 R",884,"+","visL"], ["LOB R","H2 L",902,"+","visR"],
+  ["H2 L","H2 R",212,"−","h2L"], ["H2 R","H2 L",205,"−","h2R"],
+  ["H2 L","DNa02 L",646,"+","h2L"], ["H2 R","DNa02 R",671,"+","h2R"],
+  ["DNa02 L","Steering",0,"+","dnL"], ["DNa02 R","Steering",0,"+","dnR"]
+];
+function drawGraph(){
+  const cv=$("#graph"), g=ctx(cv), W=cv.width, H=cv.height;
+  const pos = Object.fromEntries(NODES.map(n=>[n.id,{x:n.x*W,y:n.y*H,c:n.c}]));
+  EDGES.forEach(([a,b,syn,sign,src]) => {
+    const A=pos[a], B=pos[b], act = clamp(POPS[src].rate/14,0,1);
+    g.strokeStyle = sign==="−" ? C.red : A.c;
+    g.globalAlpha = 0.18 + 0.7*act;
+    g.lineWidth = 1 + (syn/1400)*5;
+    g.setLineDash(sign==="−" ? [5,4] : []);
+    g.beginPath(); g.moveTo(A.x,A.y);
+    g.bezierCurveTo((A.x+B.x)/2, A.y, (A.x+B.x)/2, B.y, B.x, B.y); g.stroke();
+    g.setLineDash([]);
+  });
+  g.globalAlpha=1; g.font="12px Inter, sans-serif"; g.textAlign="center";
+  NODES.forEach(n => {
+    const p = pos[n.id];
+    g.fillStyle="#0e1622"; g.strokeStyle=n.c; g.lineWidth=1.6;
+    g.beginPath(); g.roundRect(p.x-48,p.y-16,96,32,9); g.fill(); g.stroke();
+    g.fillStyle="#e6eef8"; g.fillText(n.id, p.x, p.y+4);
+  });
+  g.textAlign="left";
+}
+$("#wtab").innerHTML = EDGES.filter(e=>e[2]>0).map(([a,b,s,sg]) =>
+  `<tr><td>${a}</td><td>${b}</td><td style="color:${sg==="−"?C.red:C.green}">${sg==="−"?"inhibitory":"excitatory"}</td>
+   <td class="num">${s}</td><td class="num">${(s/1400).toFixed(2)}</td></tr>`).join("");
+
+/* ── analysis charts ──────────────────────────────── */
+function drawDev(){
+  const cv=$("#devChart"), g=ctx(cv), W=cv.width, H=cv.height, pad=36, R=2.5;
+  const y0 = H/2;
+  g.strokeStyle=C.line; g.beginPath(); g.moveTo(pad,y0); g.lineTo(W-8,y0); g.stroke();
+  g.strokeStyle="#2c405a"; g.setLineDash([5,5]);
+  [0.5,-0.5].forEach(v => { const y=y0 - v/R*(H/2-14);
+    g.beginPath(); g.moveTo(pad,y); g.lineTo(W-8,y); g.stroke(); });
+  g.setLineDash([]);
+  const d = S.devLog; if(d.length<2) return;
+  g.strokeStyle=P.baseline?C.blue:C.green; g.lineWidth=1.8; g.beginPath();
+  d.forEach((p,i) => {
+    const x = pad + i/(d.length-1)*(W-pad-8);
+    const y = y0 - clamp(p.dev,-R,R)/R*(H/2-14);
+    i?g.lineTo(x,y):g.moveTo(x,y);
+  });
+  g.stroke();
+  g.fillStyle=C.dim; g.font="11px Inter, sans-serif";
+  g.fillText("+2.5 m", 4, 14); g.fillText("−2.5 m", 4, H-6); g.fillText("center", 4, y0-5);
+}
+function drawTraj(){
+  const cv=$("#traj"), g=ctx(cv), W=cv.width, H=cv.height, pad=20;
+  const d=S.traj; if(d.length<2) return;
+  const s0=d[0].s, s1=Math.max(d[d.length-1].s, s0+20);
+  const X = s => pad + (s-s0)/(s1-s0)*(W-pad*2);
+  const Y = l => H/2 - l/6*(H/2-16);
+  g.strokeStyle="#3d5273"; g.lineWidth=2; g.setLineDash([6,5]); g.beginPath();
+  d.forEach((p,i)=> i?g.lineTo(X(p.s),Y(p.c)):g.moveTo(X(p.s),Y(p.c))); g.stroke();
+  g.setLineDash([]);
+  g.strokeStyle=P.baseline?C.blue:C.green; g.lineWidth=2; g.beginPath();
+  d.forEach((p,i)=> i?g.lineTo(X(p.s),Y(p.lat)):g.moveTo(X(p.s),Y(p.lat))); g.stroke();
+  g.fillStyle=C.dim; g.font="11px Inter, sans-serif";
+  g.fillText("dashed: road centerline · solid: driven path", pad, 16);
+}
+
+/* ── ablation log ─────────────────────────────────── */
+const runs = [];
+function conditionName(){
+  const on = [];
+  if(P.baseline) return "Baseline PID controller";
+  if(P.abL) on.push("H2 L silenced");
+  if(P.abR) on.push("H2 R silenced");
+  if(P.abMot) on.push("DNa02 R silenced");
+  if(P.abFlow) on.push("no optical flow");
+  return on.length ? "H2 spiking, " + on.join(" + ") : "H2 spiking, intact";
+}
+$("#btnLog").addEventListener("click", () => {
+  if(S.devLog.length < 20){ flashLog("Run the simulation for a few seconds first."); return; }
+  const a = S.devLog.map(p=>Math.abs(p.dev));
+  const mean = a.reduce((x,y)=>x+y,0)/a.length, max = Math.max(...a);
+  const exits = S.devLog.filter((p,i,arr)=> Math.abs(p.dev)>LANE && (i===0||Math.abs(arr[i-1].dev)<=LANE)).length;
+  runs.push({name:conditionName(), mean, max, exits, ok: mean<0.6 && exits===0});
+  renderRuns();
+});
+function renderRuns(){
+  $("#abtab").innerHTML = runs.map(r =>
+    `<tr><td>${r.name}</td><td class="num">${r.mean.toFixed(2)} m</td>
+     <td class="num">${r.max.toFixed(2)} m</td><td class="num">${r.exits}</td>
+     <td style="color:${r.ok?C.green:C.red}">${r.ok?"lane held":"lane lost"}</td></tr>`).join("")
+   || `<tr><td colspan="5" class="muted">No runs recorded yet.</td></tr>`;
+}
+function flashLog(msg){ const b=$("#btnLog"); const t=b.textContent; b.textContent=msg;
+  setTimeout(()=>b.textContent=t,1800); }
+renderRuns();
+
+/* ── readouts ─────────────────────────────────────── */
+function paintUI(){
+  const pct = v => Math.round(v*100)+"%";
+  $("#speed").textContent = (S.v*3.6).toFixed(1);
+  $("#gasTxt").textContent = $("#gasV2").textContent = pct(S.gas);
+  $("#brkTxt").textContent = $("#brkV2").textContent = pct(S.brake);
+  $("#gasBar").style.width = pct(S.gas);
+  $("#brkBar").style.width = pct(S.brake);
+  $("#gasV").style.height = pct(S.gas);
+  $("#brkV").style.height = pct(S.brake);
+  $("#steerTxt").textContent = (S.steer*45>=0?"+":"") + (S.steer*45).toFixed(1) + "°";
+  const dev = S.lat - centerAt(S.s);
+  $("#devTxt").textContent = dev.toFixed(2) + " m";
+  $("#riskTxt").textContent = S.risk === "low" ? "Low" : S.risk === "med" ? "Moderate" : "High";
+  $("#ctrlTxt").textContent = P.baseline ? "Baseline PID" : "H2 spiking";
+  $("#segLabel").textContent = curvatureLabel(S.s);
+  const st = $("#behavior");
+  if(!S.running && S.t===0) { st.textContent = "Waiting to start"; st.dataset.risk=""; }
+  else if(Math.abs(dev) > LANE){ st.textContent = "Off lane"; st.dataset.risk="high"; }
+  else if(S.risk === "high"){ st.textContent = "Braking for obstacle"; st.dataset.risk="high"; }
+  else if(Math.abs(S.steer) > 0.18){ st.textContent = S.steer>0?"Turning right":"Turning left"; st.dataset.risk="med"; }
+  else { st.textContent = "Following lane"; st.dataset.risk=""; }
+  const m = Math.floor(S.t/60), sec = Math.floor(S.t%60);
+  $("#clock").textContent = String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");
+}
+
+/* ── loop ─────────────────────────────────────────── */
+let last = 0;
+function frame(ts){
+  const dt = last ? Math.min((ts-last)/1000, 0.05) : 0.016;
+  last = ts;
+  if(S.running){ for(let i=0;i<3;i++) step(dt/3); }
+  const active = id => !$("#tab-"+id).classList.contains("hide");
+  if(active("sim")){ drawRoad(); drawBrain(); drawMapping(); drawWheel(); drawRaster($("#raster")); drawCam(); }
+  if(active("brain")){ drawRaster($("#raster2"), true); drawRates(); }
+  if(active("conn")) drawGraph();
+  if(active("ana")){ drawDev(); drawTraj(); }
+  paintUI();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ── buttons ──────────────────────────────────────── */
+$("#btnRun").addEventListener("click", e => {
+  S.running = !S.running;
+  e.currentTarget.textContent = S.running ? "⏸ Pause simulation" : "▶ Start simulation";
+});
+$("#btnStep").addEventListener("click", () => { for(let i=0;i<50;i++) step(0.01); });
+$("#btnReset").addEventListener("click", () => {
+  reset(); $("#btnRun").textContent = "▶ Start simulation";
+});
+$("#btnSwap").addEventListener("click", e => {
+  P.baseline = !P.baseline;
+  e.currentTarget.textContent = P.baseline ? "⇄ Switch to fly controller" : "⇄ Switch to baseline controller";
+});
+$("#sTraf").addEventListener("change", seedTraffic);
+})();
+</script>
+</body>
+</html>
